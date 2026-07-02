@@ -6,5 +6,7 @@
 /Automate-Workflow-Vendor-Site-Update/scripts/supplier-data.tar.gz
 /Automate-Workflow-Vendor-Site-Update/scripts/__pycache__
 .idea
+.DS_Store
+*.tar.*
 
 
