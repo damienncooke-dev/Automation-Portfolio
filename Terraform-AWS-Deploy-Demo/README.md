@@ -17,7 +17,7 @@ This project provisions a realistic, multi-environment AWS infrastructure (e.g. 
 ## Repository Structure
 
 ```
-terraform-aws-deploy-demo/
+Terraform-AWS-Deploy-Demo/
 ├── README.md
 ├── bootstrap-backend/              # Use this directory for the remote state storage infrastructure.
 │   │   ├── main.tf
@@ -29,6 +29,7 @@ terraform-aws-deploy-demo/
 │   ├── ## Phase 1 ##               # Phase 1: Infrastructure Provisioning
 │   ├── iam/
 │   │   ├── main.tf
+│   │   ├── policies.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
 │   ├── s3/
@@ -382,6 +383,13 @@ resource "local_file" "change_state" {
 
 **Concepts demonstrated:** IAM roles, policies, instance profiles, policy attachment, data sources, least-privilege design.
 
+Documents used to create the IAM: role, policies, policy document, and policy attachment:
+
+- [IAM Role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
+- [IAM Policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy)
+- [IAM Policy Document](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)
+- [IAM Policy Attachment](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy_attachment)
+
 ### 2.1 IAM Module Structure (`modules/iam/`)
 
 - Accept `environment` and `app_name` as input variables
@@ -418,13 +426,14 @@ Show how the IAM module consumes outputs from the S3 and DynamoDB modules to sco
 
 ## Stage 3 — S3: Storage, Lifecycle, and Environment Isolation
 
+- [S3 Bucket Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket)
 
 
 ---
 
 ## Stage 4 — DynamoDB: Application Data and State Store
 
-
+- [DynamoDB Table Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table)
 ---
 
 ## Stage 5 — Networking: VPC and Security Groups
