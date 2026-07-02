@@ -8,9 +8,9 @@
 
 This project provisions a realistic, multi-environment AWS infrastructure (e.g. dev / staging / prod) using Terraform. It demonstrates core SRE competencies including IaC lifecycle management, remote state, modular design, IAM least-privilege, and observability — mapped directly to the skills expected in environment automation roles.
 
-**Tech Stack: PHASE 1 ** Terraform · AWS (IAM, S3, DynamoDB, EC2)**
+**Tech Stack: PHASE 1 ** Terraform · AWS (IAM, S3, DynamoDB)**
 
-**Tech Stack: PHASE 2 ** Terraform · AWS (VPC, CloudWatch) · GitHub Actions CI/CD**
+**Tech Stack: PHASE 2 ** Terraform · AWS (EC2, VPC, CloudWatch) · GitHub Actions CI/CD**
 
 ---
 
@@ -35,15 +35,15 @@ terraform-aws-deploy-demo/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
-│   ├── postgresql/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── ec2/
+│   ├── dynamodb/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
 │   ├── ## Phase 2 ##               # Phase 2: Infrastructure Provisioning
+│   ├── ec2/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
 │   ├── vpc/
 │   │   ├── main.tf
 │   │   ├── variables.tf
@@ -380,6 +380,39 @@ resource "local_file" "change_state" {
 
 ## Stage 2 — IAM: Identity and Least-Privilege Access
 
+**Concepts demonstrated:** IAM roles, policies, instance profiles, policy attachment, data sources, least-privilege design.
+
+### 2.1 IAM Module Structure (`modules/iam/`)
+
+- Accept `environment` and `app_name` as input variables
+- Output role ARN and instance profile name for consumption by other modules
+
+In this section we are going to look at the structure of what makes a module.  A module is a collection of resources that can be used in 
+
+### 2.2 IAM Role for EC2 (Instance Profile)
+
+- Create an IAM role with an EC2 trust policy
+- Attach a custom policy granting only the permissions needed (e.g., read from a specific S3 bucket, write to a specific DynamoDB table)
+- Create an instance profile to attach the role to EC2 instances
+
+```hcl
+resource "aws_iam_role" "app_role" {
+  name               = "${var.app_name}-${var.environment}-role"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+}
+```
+
+### 2.3 Custom IAM Policy (Least Privilege)
+
+- Use `aws_iam_policy_document` data source to build policies in HCL (not JSON strings)
+- Scope permissions to specific resource ARNs using `module.s3.bucket_arn` and `module.dynamodb.table_arn` output references
+
+### 2.4 Demonstrate Cross-Module Reference
+
+Show how the IAM module consumes outputs from the S3 and DynamoDB modules to scope permissions to exact resource ARNs — illustrating module composition.
+
+
+**SRE relevance:** Demonstrates understanding of isolation and least-privilege — critical when managing many tenant environments where blast radius must be minimized.
 
 ---
 
