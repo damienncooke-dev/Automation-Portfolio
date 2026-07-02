@@ -17,31 +17,33 @@ This project provisions a realistic, multi-environment AWS infrastructure (e.g. 
 ## Repository Structure
 
 ```
-terraform-aws-sre-demo/
+terraform-aws-deploy-demo/
 ├── README.md
+├── bootstrap-backend/              # Use this directory for the remote state storage infrastructure.
+│   │   ├── main.tf
+│   │   ├── provider.tf
+│   │   ├── terraform.tfstate
+│   │   ├── variables.tf
+│   │   └── .terraform/
 ├── modules/
-│   ├── ## Stage 1 ##
+│   ├── ## Phase 1 ##               # Phase 1: Infrastructure Provisioning
 │   ├── iam/
 │   │   ├── main.tf
 │   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── providers.tf
+│   │   └── outputs.tf
 │   ├── s3/
 │   │   ├── main.tf
 │   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── providers.tf
+│   │   └── outputs.tf
 │   ├── postgresql/
 │   │   ├── main.tf
 │   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── providers.tf
+│   │   └── outputs.tf
 │   ├── ec2/
 │   │   ├── main.tf
 │   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── providers.tf
-│   ├── ## Stage 2 ##
+│   │   └── outputs.tf
+│   ├── ## Phase 2 ##               # Phase 2: Infrastructure Provisioning
 │   ├── vpc/
 │   │   ├── main.tf
 │   │   ├── variables.tf
@@ -50,211 +52,349 @@ terraform-aws-sre-demo/
 │       ├── main.tf
 │       ├── variables.tf
 │       └── outputs.tf
-├── environments/           # Use this directory to provision environments using workspaces. 
-│   ├── dev/                
+├── environments/              
+│   ├── dev/                                
+│   │   ├── providers.tf
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── terraform.tfvars
+│   │   ├── terraform.tfstate       # Will be deleted after backend configuration is complete.
 │   │   └── backend.tf
-│   ├── staging/
+│   ├── staging/                    # (Not used in this demo.)
+│   │   ├── providers.tf
 │   │   ├── main.tf
-│   │   ├── ... (For display only. Not used in this demo.)
-│   └── prod/
+│   │   ├── ...                    
+│   └── prod/                   
+│       ├── providers.tf
 │       ├── main.tf
 │       ├── variables.tf
 │       ├── terraform.tfvars
+│       ├── terraform.tfstate       # Will be deleted after backend configuration is complete.
 │       └── backend.tf
 └── .gitignore
 ```
 
 ---
 
-## Stage 1 — Terraform Foundations & Remote State Bootstrap
+## Stage 1 — Terraform Foundations & AWS Remote State Bootstrap
 
-**Concepts demonstrated:** provider configuration, backend setup, S3 state storage, S3 state locking, S3 versioning enabled.
+**Concepts demonstrated:** Credential setup and storage, provider configuration, backend setup for S3 state storage, state locking and S3 versioning enabled.
 
-### 1.1 Provider Configuration
 
-- Configure the `aws` provider with region variable
-- Pin provider version with `required_providers` block
-- Use `terraform.required_version` constraint
+### 1.1 AWS Access Credentials
 
-### 1.2 S3 Backend for Remote State
+Access to AWS resources from any location requires credentials stored in environment variables or in a shared credentials file. 
+
+- Download the AWS CLI for platform-specific usage: [AWS Getting Started](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html)
+- Confirm succuessful installation by running `aws --version`
+  - For this demo, we'll use the AWS CLI v2. 
+    - > aws-cli/2.35.11 Python/3.14.5 Darwin/25.5.0 exe/arm64
+- Generate an access key pair and configure the AWS CLI with the credentials
+  - From IAM Service -> IAM Users, click on your user name, navigate to the Security Credentials tab, and click Create Access Key.
+  - Select your use case and select confirmation. For this demo, the use case is "Command Line Interface". 
+  - Provide a Description tav value: "aws-access-from-local-terminal", the select "Create access key".
+  - Copy the Access Key ID and Secret Access Key values.
+  - Run `aws configure` and paste the Access Key ID and Secret Access Key values.
+    - Set your default region
+    - Set the output format. For this demo, the default will be kept as "json".
+  - Login into AWS using the configured credentials.
+  - Run `aws login`. Follow the prompts to authenticate.
+  - Confirm the configuration by running `aws sts get-caller-identity`.
+    - You should see the following output:
+  ```json
+  {
+    "UserId": "<access-key-id>",
+    "Account": "<6-digit-account-id>",
+    "Arn": "arn:aws:sts::..."
+  } 
+  ```
+
+### 1.2 Provider Configuration
+
+Setting up the provider configuration will enable you to:
+- Source and version providers from the Terraform registry.
+- Configure and authenticate providers.
+- Upgrade provider versions safely. 
+- Configure multiple instances of the same provider using aliases and control which providers your Terraform modules use to provision infrastructure.
+
+The following block configures:
+- AWS as the provider, `source` of the provider pluggins as `[hostname]/namespace/type`,  and any `version` above 6.50.0. Any changes or new constraints on the provider version are made here.
+  - `source` is the address of the provider on the Terraform registry.
+  - `version` is the version constraint for the provider.
+  - `required_version` is the minimum required version of Terraform or anything greater than or equal to 1.2 ("Major: 1, Minor: 2"). For this demo we will be using Terraform Community Edition 1.15.7. 
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.50.0"
+    }
+  }
+  required_version = ">= 1.2"
+}
+```
+The next block configures:
+- A `region` for AWS resources. In the block below, region will be sourced from the `aws_region` in `variable.tf`.  It will be a function of the namespace being created, which will have a specific region assigned
+```hcl
+provider "aws" {
+  region = var.aws_region
+}
+```
+The completed provider.tf file should look like this:
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.50.0"
+    }
+  }
+  required_version = ">= 1.2"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+```
+The final configuration above will be placed in the `providers.tf` file in each environment directory below:
+- `bootstrap-backend/provider.tf`
+- `environments/dev/provider.tf`
+- `environments/staging/provider.tf`   (Not used in this demo)
+- `environments/prod/provider.tf`
+
+Select the `environments/dev/` directory and run `terraform init` to initialize the provider configuration.  This will download the provider plugins and store them in the `.terraform/providers/...` directory.
+
+```
+... % tf init
+Initializing provider plugins found in the configuration...
+- Finding hashicorp/aws versions matching "~> 6.50.0"...
+- Installing hashicorp/aws v6.50.0...
+- Installed hashicorp/aws v6.50.0 (signed by HashiCorp)
+
+Initializing the backend...
+
+
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+
+```
+```
+├── environments/              
+│   ├── dev/                                
+│   │   ├── providers.tf
+│   │   ├── .terraform
+│   │   .     └── providers
+│   │   .     .    └── <hostname=registry.terraform.io>
+│   │   .     .    .     └── <namespace=hashicorp>
+│   │   .     .    .     .      └── <type=aws>
+
+```
+
+### 1.3 S3 Backend for Remote State
 
 Provision an S3 bucket to store Terraform state files remotely:
 
 - Enable versioning on the state bucket (supports state rollback)
 - Enable server-side encryption (SSE-S3 or SSE-KMS)
 - Block all public access
-- Enable access logging to a separate S3 bucket
 
+<br>
+
+#### S3 Bucket Creation
+
+Documents used to create the S3 bucket, enable versioning, enable encryption, and block public access:
+- [S3 Bucket Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket)
+- [S3 Bucket Encryption](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_server_side_encryption_configuration#sse_algorithm-2
+)
+- [S3 Bucket Public Access Block](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_public_access_block)
+- [S3 Bucket Versioning](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_versioning)
+
+1. Create a `main.tf` file in the `bootstrap-backend/` directory with the following content:
 ```hcl
-# bootstrap/main.tf — run once to create the backend infrastructure
-resource "aws_s3_bucket" "tf_state" {
-  bucket = "your-org-terraform-state"
-  # ... versioning, encryption, public access block
+# bootstrap-backend/main.tf
+**== main.tf ==**
+```hcl
+# The Single S3 Bucket for both State Storage AND Native Locking
+resource "aws_s3_bucket" "terraform_state" {
+  bucket_prefix = "terraform-aws-remote-tfstate-bucket"
+  force_destroy = false
 }
+
+# DevSecOps Best Practice: Ensure the state bucket is fully encrypted
+resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate_crypto" {
+  bucket = aws_s3_bucket.terraform_state.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# DevSecOps Best Practice: Block all public access to your state file
+resource "aws_s3_bucket_public_access_block" "tfstate_privacy" {
+  bucket                  = aws_s3_bucket.terraform_state.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Enable versioning
+resource "aws_s3_bucket_versioning" "state_versioning" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+        
+
 ```
 
-### 1.3 Backend Configuration Per Environment
+2. Perform Terraform workflow commands:
+  - `tf init` to initialize the provider plugins and download the state bucket.
+  - `tf plan` to preview the changes that will be made to the state bucket.
+  - `tf apply` to create the state bucket and configure its settings.
 
-Configure each environment to use the shared S3 backend with a unique state key:
+3. To see the bucket that was just created:
+```bash
+..% aws s3 ls
 
+NOTE: The output will be suppled to "bucket" in the backend.tf file.
+```
+...as viewed from the UI-Console:
+
+[paste-s3-bucket-image-here]
+
+<br>
+
+
+
+### 1.4 Backend Configuration Per Environment
+
+Configure the `dev` and `prod` environments to use the shared S3 backend with a unique state key:
+Note the 
+
+* **/evnironments/dev/backend.tf**
 ```hcl
 # environments/dev/backend.tf
 terraform {
   backend "s3" {
-    bucket         = "your-org-terraform-state"
+    bucket         = "terraform-aws-remote-tfstate-bucket20260702004645306300000001"
     key            = "environments/dev/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-state-lock"
-    encrypt        = true
+    use_lockfile   = true
+  }
+}
+```
+* **/evnironments/prod/backend.tf**
+```hcl
+# environments/dev/backend.tf
+terraform {
+  backend "s3" {
+    bucket         = "terraform-aws-remote-tfstate-bucket20260702004645306300000001"
+    key            = "environments/prod/terraform.tfstate"
+    region         = "us-east-1"
+    use_lockfile   = true
   }
 }
 ```
 
-**SRE relevance:** Remote state with locking mirrors how teams safely manage IaC across many tenant environments without state corruption.
+2. Perform Terraform `init` in both environments:
+- `tf init` to configure the s3 backend.
+```
+... % tf init
+
+You should see the following output:
+
+Initializing provider plugins found in the configuration...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Using previously-installed hashicorp/aws v6.50.0
+
+Initializing the backend...
+
+Successfully configured the backend "s3"! Terraform will automatically
+use this backend unless the backend configuration changes.
+
+
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+
+```
+3. At this point you will see the successful creation of the S3 backend, however no state has been created. We can create a local file in the directories to force a state file to be created.
+
+* **/evnironments/dev/main.tf**
+```hcl
+# environments/dev/backend.tf
+resource "local_file" "change_state" {
+  filename = "environments/dev/demofile.txt"
+  content  = "Demo file to force a state file to be generated."
+}
+```
+* **/evnironments/prod/main.tf**
+```hcl
+# environments/dev/backend.tf
+resource "local_file" "change_state" {
+  filename = "environments/prod/demofile.txt"
+  content  = "Demo file to force a state file to be generated."
+}
+```
+
+4. Perform Terraform workflow commands in both the `dev` and `prod` environments:
+  - `tf init` to initialize the provider plugins and download the state bucket.
+  - `tf plan` to preview the changes that will be made to the state bucket.
+  - `tf apply` to create the state bucket and configure its settings.
+
+5. Now you can see the state files in the S3 bucket:
+```bash
+
+...% aws s3 ls s3://terraform-aws-remote-tfstate-bucket20260702004645306300000001 --recursive
+
+2026-07-01 22:10:42       1686 environments/dev/terraform.tfstate
+2026-07-01 22:15:29        181 environments/prod/terraform.tfstate
+```
+
+<br>
+
 
 ---
 
 ## Stage 2 — IAM: Identity and Least-Privilege Access
 
-**Concepts demonstrated:** IAM roles, policies, instance profiles, policy attachment, data sources, least-privilege design.
-
-### 2.1 IAM Module Structure (`modules/iam/`)
-
-- Accept `environment` and `app_name` as input variables
-- Output role ARN and instance profile name for consumption by other modules
-
-### 2.2 IAM Role for EC2 (Instance Profile)
-
-- Create an IAM role with an EC2 trust policy
-- Attach a custom policy granting only the permissions needed (e.g., read from a specific S3 bucket, write to a specific DynamoDB table)
-- Create an instance profile to attach the role to EC2 instances
-
-```hcl
-resource "aws_iam_role" "app_role" {
-  name               = "${var.app_name}-${var.environment}-role"
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
-}
-```
-
-### 2.3 Custom IAM Policy (Least Privilege)
-
-- Use `aws_iam_policy_document` data source to build policies in HCL (not JSON strings)
-- Scope permissions to specific resource ARNs using `module.s3.bucket_arn` and `module.dynamodb.table_arn` output references
-
-### 2.4 Demonstrate Cross-Module Reference
-
-Show how the IAM module consumes outputs from the S3 and DynamoDB modules to scope permissions to exact resource ARNs — illustrating module composition.
-
-### 2.5 (Stretch) IAM for CI/CD Pipeline
-
-- Create a dedicated IAM user or role for GitHub Actions with scoped permissions
-- Use OIDC federation to avoid long-lived access keys (GitHub Actions → AWS trust relationship)
-
-**SRE relevance:** Demonstrates understanding of isolation and least-privilege — critical when managing many tenant environments where blast radius must be minimized.
 
 ---
 
 ## Stage 3 — S3: Storage, Lifecycle, and Environment Isolation
 
-**Concepts demonstrated:** resource configuration, conditional expressions, `for_each`, lifecycle rules, tagging strategy.
 
-### 3.1 S3 Module (`modules/s3/`)
-
-Inputs: `bucket_name_prefix`, `environment`, `enable_versioning`, `lifecycle_enabled`
-Outputs: `bucket_id`, `bucket_arn`, `bucket_domain_name`
-
-### 3.2 Environment-Specific Buckets
-
-Provision separate S3 buckets per environment using a naming convention:
-
-```
-{prefix}-{environment}-{aws_account_id}
-```
-
-- Enforce bucket name uniqueness with account ID interpolation
-- Tag all resources with `Environment`, `ManagedBy = "terraform"`, `Project`
-
-### 3.3 Versioning and Lifecycle Rules
-
-- Enable versioning conditionally based on `var.enable_versioning`
-- Configure lifecycle rule to transition objects to `STANDARD_IA` after 30 days and expire noncurrent versions after 90 days (dev) vs. 365 days (prod)
-
-```hcl
-resource "aws_s3_bucket_lifecycle_configuration" "this" {
-  count  = var.lifecycle_enabled ? 1 : 0
-  bucket = aws_s3_bucket.this.id
-  # ... rules
-}
-```
-
-### 3.4 Public Access Block and Bucket Policy
-
-- Block all public access on every bucket
-- Attach a bucket policy enforcing HTTPS-only access (`aws:SecureTransport`)
-
-### 3.5 Access Logging
-
-Route S3 access logs from application buckets to a dedicated logging bucket — demonstrates defense-in-depth and audit trail thinking.
-
-**SRE relevance:** Mirrors artifact/log storage patterns used in environment lifecycle management, including backup and retention policies.
 
 ---
 
 ## Stage 4 — DynamoDB: Application Data and State Store
 
-**Concepts demonstrated:** NoSQL provisioning, capacity modes, TTL, stream configuration, tagging.
-
-### 4.1 DynamoDB Module (`modules/dynamodb/`)
-
-Inputs: `table_name`, `environment`, `billing_mode`, `enable_ttl`, `enable_streams`
-Outputs: `table_arn`, `table_name`, `stream_arn`
-
-### 4.2 Core Table Configuration
-
-- Configure hash key and optional range key via variables
-- Support both `PAY_PER_REQUEST` (dev/staging) and `PROVISIONED` (prod) billing modes using a conditional
-- Enable point-in-time recovery (PITR) in prod
-
-```hcl
-resource "aws_dynamodb_table" "this" {
-  name         = "${var.table_name}-${var.environment}"
-  billing_mode = var.billing_mode
-  hash_key     = var.hash_key
-
-  point_in_time_recovery {
-    enabled = var.environment == "prod" ? true : false
-  }
-}
-```
-
-### 4.3 TTL Configuration
-
-Enable TTL on a configurable attribute for session or ephemeral data — demonstrate operational understanding of data expiration.
-
-### 4.4 DynamoDB Streams (Stretch)
-
-Enable DynamoDB Streams and output the stream ARN for downstream consumption (e.g., Lambda trigger) — demonstrates design awareness for event-driven patterns.
-
-### 4.5 Environment-Differentiated Configuration
-
-Show `terraform.tfvars` differences across environments:
-
-| Setting | dev | staging | prod |
-|---|---|---|---|
-| `billing_mode` | PAY_PER_REQUEST | PAY_PER_REQUEST | PROVISIONED |
-| `enable_pitr` | false | false | true |
-| `enable_streams` | false | true | true |
-
-**SRE relevance:** Demonstrates ability to differentiate infrastructure configuration per environment — a core requirement when operating many tenant environments.
 
 ---
 
 ## Stage 5 — Networking: VPC and Security Groups
-
-
 
 
 
@@ -280,23 +420,9 @@ Show `terraform.tfvars` differences across environments:
 
 ---
 
-## Architecture Diagram
-
->
----
 
 ## How This Maps to the GitLab SRE JD
 
-| JD Requirement | Demonstrated Here |
-|---|---|
-| Terraform modules, variables, state management for multiple environments | All phases |
-| Infrastructure lifecycle: provisioning, upgrades, configuration changes | Phases 1–6, 8–9 |
-| Reducing manual toil through automation | Phase 8 (CI/CD), Phase 9.2 (drift detection) |
-| Observability stack | Phase 7 |
-| Runbooks and repeatable operational processes | Phase 9, `docs/runbook.md` |
-| Git-based IaC workflows | Phase 8, PR-driven plan/apply |
-| IAM least-privilege and security | Phase 2 |
-| Environment isolation | Phase 6, VPC module |
 
 ---
 
@@ -304,10 +430,11 @@ Show `terraform.tfvars` differences across environments:
 
 ### Prerequisites
 
-- Terraform >= 1.6
+- Terraform >= 1.6 (Community Edition Latest = 1.15.7)
+- Terraform Cloud ( Optional
 - AWS CLI configured with appropriate credentials
 - GitHub repository with Actions enabled
-- (Optional) AWS account with sufficient IAM permissions to create all resources above
+- AWS account with sufficient IAM permissions to create all resources above
 
 ### Bootstrap (One-time)
 
