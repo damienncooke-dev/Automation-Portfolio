@@ -8,7 +8,7 @@
 
 This project provisions a realistic, multi-environment AWS infrastructure (e.g. dev / staging / prod) using Terraform. It demonstrates core SRE competencies including IaC lifecycle management, remote state, modular design, IAM least-privilege, and observability — mapped directly to the skills expected in environment automation roles.
 
-**Tech Stack: PHASE 1 ** Terraform · AWS (IAM, S3, PostgreSQL, EC2)**
+**Tech Stack: PHASE 1 ** Terraform · AWS (IAM, S3, DynamoDB, EC2)**
 
 **Tech Stack: PHASE 2 ** Terraform · AWS (VPC, CloudWatch) · GitHub Actions CI/CD**
 
@@ -346,7 +346,7 @@ commands will detect it and remind you to do so if necessary.
 ```hcl
 # environments/dev/backend.tf
 resource "local_file" "change_state" {
-  filename = "environments/dev/demofile.txt"
+  filename = "demofile.txt"
   content  = "Demo file to force a state file to be generated."
 }
 ```
@@ -354,7 +354,7 @@ resource "local_file" "change_state" {
 ```hcl
 # environments/dev/backend.tf
 resource "local_file" "change_state" {
-  filename = "environments/prod/demofile.txt"
+  filename = "demofile.txt"
   content  = "Demo file to force a state file to be generated."
 }
 ```
