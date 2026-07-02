@@ -1,0 +1,13 @@
+# State Files
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Plugins
+.terraform/
+
+# Never commit secrets!
+*.tfvars
+*.tfvars.json
+
+.DS_Store
