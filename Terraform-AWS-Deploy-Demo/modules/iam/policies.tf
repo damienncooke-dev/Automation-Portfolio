@@ -7,6 +7,10 @@ data "aws_iam_policy_document" "instance_assume_role_policy" {
       type        = "Service"
       identifiers = ["ec2.amazonaws.com"]
     }
+    principals {
+      type        = "AWS"
+      identifiers = [var.trusted_role_arn]
+    }
   }
 }
 
