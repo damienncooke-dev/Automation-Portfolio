@@ -4,9 +4,8 @@ variable "environment" {
 }
 
 variable "market_namespace" {
-  description = "Multi-tenancy, environment isolation"
   type = string
-  default = "market-a"
+  description = "Multi-tenancy, environment isolation"
 }
 
 variable "bucket_arn" {
