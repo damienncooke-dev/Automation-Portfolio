@@ -8,3 +8,4 @@ variable "market_namespace" {
   type = string
   default = "market-a"
 }
+
