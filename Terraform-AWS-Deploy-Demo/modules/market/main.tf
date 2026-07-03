@@ -8,6 +8,7 @@ module "dynamodb" {
   source           = "../dynamodb"
   environment      = var.environment
   market_namespace = var.market_namespace
+  billing_mode     = var.billing_mode
 }
 
 module "iam" {
