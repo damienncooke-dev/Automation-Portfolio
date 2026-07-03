@@ -1,13 +1,13 @@
 variable "environment" {
-  default = "dev"
+  default = "prod"
 }
 
 variable "aws_region" {
-  default = "us-east-1"
+  default = "us-west-1"
 }
 
 variable "market_namespaces" {
-  type    = list(string)
+  type = list(string)
   default = [
     "market-a",
     "market-b",
@@ -19,3 +19,5 @@ variable "trusted_role_arn" {
   type        = string
   description = "Used to grant the user permission to assume role"
 }
+
+
