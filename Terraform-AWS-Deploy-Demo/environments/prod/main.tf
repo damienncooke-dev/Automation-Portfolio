@@ -5,4 +5,5 @@ module "market_stack" {
   market_namespace = each.value
   environment      = var.environment
   trusted_role_arn = var.trusted_role_arn
+  billing_mode     = var.billing_mode
 }

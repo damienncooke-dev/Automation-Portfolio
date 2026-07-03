@@ -20,4 +20,7 @@ variable "trusted_role_arn" {
   description = "Used to grant the user permission to assume role"
 }
 
-
+variable "billing_mode" {
+  type        = string
+  default = "PROVISIONED"
+}

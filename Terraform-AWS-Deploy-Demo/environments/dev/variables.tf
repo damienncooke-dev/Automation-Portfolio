@@ -19,3 +19,8 @@ variable "trusted_role_arn" {
   type        = string
   description = "Used to grant the user permission to assume role"
 }
+
+variable "billing_mode" {
+  type        = string
+  default = "PAY_PER_REQUEST"
+}
