@@ -6,7 +6,7 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
-variable "market_namespaces" {
+variable "market_region" {
   type    = list(string)
   default = [
     "market-a",

@@ -3,7 +3,7 @@ variable "environment" {
   default = "dev"
 }
 
-variable "market_namespace" {
+variable "market_region" {
   type = string
   description = "Multi-tenancy, environment isolation"
 }
