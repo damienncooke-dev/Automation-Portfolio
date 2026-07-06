@@ -1,8 +1,8 @@
-# The 'resource' below creates the Trust policy required by AWS when combined with policies.tf: "data.aws_iam_policy_document.instance_assume_role_policy.json"
+# The 'resource' below creates the Trust policy to allow ec2 resource to assume the role "demo-${var.environment}-${var.market_region}-role"
 resource "aws_iam_role" "market_role" {
   name               = "demo-${var.environment}-${var.market_region}-role"
-  path               = "/market/"
-  assume_role_policy = data.aws_iam_policy_document.instance_assume_role_policy.json
+  path               = "/market/"   # organize this role under "market"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
 }
 
 # The 'resource' below creates the Permission policy when combined with policies.tf: "data.aws_iam_policy_document.market_permissions.json"
