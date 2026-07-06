@@ -1,7 +1,7 @@
 
 module "market_stack" {
   source           = "../../modules/market"
-  for_each         = toset(var.market_namespaces) # for_each only accepts map and set types, raw list types generate an error
+  for_each         = toset(var.market_region) # for_each only accepts map and set types, raw list types generate an error
   market_region    = each.value
   environment      = var.environment
   trusted_role_arn = var.trusted_role_arn
