@@ -12,7 +12,7 @@ resource "aws_iam_policy" "market_policy"{
   policy = data.aws_iam_policy_document.market_permissions.json
 }
 
-# Here we attach the permission policy resource: "market_policy" to the role: "market_role" and give it it's permission boundaries
+# Here we create an instance to attach the permission policy resource: "market_policy" to the role: "market_role" and give it it's permission boundaries
 resource "aws_iam_role_policy_attachment" "market_attach" {
   role       = aws_iam_role.market_role.name
   policy_arn = aws_iam_policy.market_policy.arn
