@@ -7,7 +7,7 @@ variable "aws_region" {
 }
 
 variable "market_region" {
-  type    = list(string)
+  type = list(string)
   default = [
     "market-a",
     "market-b",
@@ -21,6 +21,18 @@ variable "trusted_role_arn" {
 }
 
 variable "billing_mode" {
-  type        = string
+  type    = string
   default = "PAY_PER_REQUEST"
 }
+
+# This ami_id is specific to "us-east-1/N.Virginia"
+variable "ami_id" {
+  type    = string
+  default = "ami-06067086cf86c58e6"
+}
+
+variable "force_destroy" {
+  type    = bool
+  default = true
+}
+
