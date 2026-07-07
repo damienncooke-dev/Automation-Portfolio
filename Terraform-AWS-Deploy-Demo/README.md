@@ -382,7 +382,7 @@ resource "local_file" "change_state" {
 - [IAM Policy Attachment](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy_attachment)
 - [S3 Bucket Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket)
 - [DynamoDB Table Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table)
-- [EC2 Instance Creation]()
+- [EC2 Instance Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance)
 
 The following sections will walk through the creation of a "market_stack" that groups together the resources needed to create the deployment of a storage and indexing solution based in a `prod` and `dev` environment.  Within those environments, you also have specific market regions that align development and production artifacts to the market in which they belong: 
 - One S3 bucket for each environment-specific (Dev/Prod) and for region-specific (market-a, market-b, and market-c) log storage. 
