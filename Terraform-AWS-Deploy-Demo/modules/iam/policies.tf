@@ -1,5 +1,5 @@
 # Trust Policy
-data "aws_iam_policy_document" "instance_assume_role_policy" {
+data "aws_iam_policy_document" "ec2_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
 
@@ -23,7 +23,7 @@ data "aws_iam_policy_document" "market_permissions" {
         "s3:ListBucket"
      ]
      resources = [
-        var.bucket_arn
+        var.bucket_arn    # only list permitted on the buckets with arn (e.g. arn:aws:s3:::demo-dev-market-a-logs)
      ]
    }
 
@@ -34,7 +34,7 @@ data "aws_iam_policy_document" "market_permissions" {
         "s3:PutObject"
      ]
      resources = [
-        "${var.bucket_arn}/*"
+        "${var.bucket_arn}/*"   # actions allowed only on the objects in the bucket with arn (e.g. arn:aws:s3:::demo-dev-market-a-logs)
      ]
    }
 
@@ -47,7 +47,8 @@ data "aws_iam_policy_document" "market_permissions" {
         "dynamodb:Scan"
      ]
      resources = [
-        var.table_arn
+        var.table_arn   # actions allowed on tables with arn (e.g. arn:aws:dynamodb:us-east-1:...:table/demo-dev-market-a-log-index
      ]
    }
 }
+

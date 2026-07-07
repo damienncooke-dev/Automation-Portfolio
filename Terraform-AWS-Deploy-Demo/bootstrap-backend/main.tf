@@ -1,7 +1,7 @@
 # The Single S3 Bucket for both State Storage AND Native Locking
 resource "aws_s3_bucket" "terraform_state" {
   bucket_prefix = "terraform-aws-remote-tfstate-bucket"
-  force_destroy = false
+  force_destroy = false   # added to prevent deletion of tfstate if bucket is destroyed
 }
 
 # DevSecOps Best Practice: Ensure the state bucket is fully encrypted
@@ -27,6 +27,6 @@ resource "aws_s3_bucket_public_access_block" "tfstate_privacy" {
 resource "aws_s3_bucket_versioning" "state_versioning" {
   bucket = aws_s3_bucket.terraform_state.id
   versioning_configuration {
-    status = "Enabled"
+    status = "Enabled"     # keep all versions of tfstate
   }
 }

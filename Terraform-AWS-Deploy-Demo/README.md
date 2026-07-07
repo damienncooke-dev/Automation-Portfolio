@@ -6,11 +6,11 @@
 
 ## Project Overview
 
-This project provisions a realistic, multi-environment AWS infrastructure (e.g. dev / staging / prod) using Terraform. It demonstrates core SRE competencies including IaC lifecycle management, remote state, modular design, IAM least-privilege, and observability — mapped directly to the skills expected in environment automation roles.
+This project provisions a realistic, multi-environment AWS infrastructure (e.g. dev / prod) using Terraform. It demonstrates core SRE competencies including IaC lifecycle management, remote state, modular design, IAM least-privilege, and observability — mapped directly to the skills expected in environment automation roles.
 
-**Tech Stack: PHASE 1 ** Terraform · AWS (IAM, S3, DynamoDB)**
+**Project PHASE 1 ** Create a remote state backend (RSB) for storing Terraform state files in S3.**
 
-**Tech Stack: PHASE 2 ** Terraform · AWS (EC2, VPC, CloudWatch) · GitHub Actions CI/CD**
+**Project PHASE 2 ** Create IAM role and policies to manage ec2 access to AWS resources.**
 
 ---
 
@@ -26,7 +26,6 @@ Terraform-AWS-Deploy-Demo/
 │   │   ├── variables.tf
 │   │   └── .terraform/
 ├── modules/
-│   ├── ## Phase 1 ##               # Phase 1: Infrastructure Provisioning
 │   ├── iam/
 │   │   ├── main.tf
 │   │   ├── policies.tf
@@ -40,44 +39,36 @@ Terraform-AWS-Deploy-Demo/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
-│   ├── ## Phase 2 ##               # Phase 2: Infrastructure Provisioning
 │   ├── ec2/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
-│   ├── vpc/
+│   ├── market/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
-│   └── monitoring/
-│       ├── main.tf
-│       ├── variables.tf
-│       └── outputs.tf
 ├── environments/              
 │   ├── dev/                                
 │   │   ├── providers.tf
 │   │   ├── main.tf
 │   │   ├── variables.tf
-│   │   ├── terraform.tfvars
-│   │   ├── terraform.tfstate       # Will be deleted after backend configuration is complete.
-│   │   └── backend.tf
-│   ├── staging/                    # (Not used in this demo.)
-│   │   ├── providers.tf
-│   │   ├── main.tf
-│   │   ├── ...                    
+│   │   ├── terraform.tfstate       # Will be copied to remote state backup after backend configuration is complete, and deleted from local
+│   │   └── backend.tf                 
 │   └── prod/                   
 │       ├── providers.tf
 │       ├── main.tf
 │       ├── variables.tf
-│       ├── terraform.tfvars
-│       ├── terraform.tfstate       # Will be deleted after backend configuration is complete.
+│       ├── terraform.tfstate       # Will be copied to remote state backup after backend configuration is complete, and deleted from local
 │       └── backend.tf
+├── sampple-data/              
+│   ├── sample-app.log  
+│   └── sample-dynamodb-item.json  
 └── .gitignore
 ```
 
 ---
 
-## Stage 1 — Terraform Foundations & AWS Remote State Bootstrap
+## Phase 1 — Terraform Foundations & AWS Remote State Bootstrap
 
 **Concepts demonstrated:** Credential setup and storage, provider configuration, backend setup for S3 state storage, state locking and S3 versioning enabled.
 
@@ -379,26 +370,66 @@ resource "local_file" "change_state" {
 
 ---
 
-## Stage 2 — IAM: Identity and Least-Privilege Access
+## Phase 2 — IAM: Role Identity and Least-Privilege Access
 
-**Concepts demonstrated:** IAM roles, policies, instance profiles, policy attachment, data sources, least-privilege design.
+**Concepts demonstrated:** IAM role, policies, instance profiles, policy attachment, data sources, least-privilege design.
 
-Documents used to create the IAM: role, policies, policy document, and policy attachment:
+**Documents used to create the resources: role, policies, policy document, and policy attachment:**
 
 - [IAM Role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
 - [IAM Policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy)
 - [IAM Policy Document](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)
 - [IAM Policy Attachment](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy_attachment)
+- [S3 Bucket Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket)
+- [DynamoDB Table Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table)
+- [EC2 Instance Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance)
+
+The following sections will walk through the creation of a "market_stack" that groups together the resources needed to create the deployment of a storage and indexing solution based in a `prod` and `dev` environment.  Within those environments, you also have specific market regions that align development and production artifacts to the market in which they belong: 
+- One S3 bucket for each environment-specific (Dev/Prod) and for region-specific (market-a, market-b, and market-c) log storage. 
+- One DynamoDB table for log indexing / metadata tracking, also environment-specific and region-specific.
+- One EC2 instance per environment-specific (Dev/Prod) and for region-specific (market-a,  market-b, and market-c) access to S3 and DynamoDB resources.
+- An IAM role called 'market_role' to allow EC2 access to the designated S3 bucket and DynamoDB table.
+- IAM policy document and instance for 'market_role' giving it read/write privileges to the S3 bucket and DynamoDB table.
+
+
+In this demo, we will use the following modules to create the resources:
+- `modules/s3/`
+- `modules/dynamodb/`
+- `modules/ec2/`
+- `modules/iam/`
+- `modules/market/`   
+
+If you are part of the Development group or the Production Operations group, you will be assigned a role for a particular market region.  Below is a matrix of the roles that will have access to the resources in the market stack.
+
+### Development Environment
+| Dev-Role      | Dev: market-a | Dev: market-b | Dev: market-c | Prod: market-a | Prod: market-b | Prod: market-c |
+|---------------|:-------------:|:-------------:|:-------------:|:---------------:|:---------------:|:---------------:|
+| market-role-a | *<u>Yes</u>*  |      No       |      No       |       No        |       No        |       No        |
+| market-role-b |      No       | *<u>Yes</u>*  |      No       |       No        |       No        |       No        |
+| market-role-c |      No       |      No       | *<u>Yes</u>*  |       No        |       No        |       No        |
+
+### Production Environment
+| Prod-Role     | Dev: market-a | Dev: market-b | Dev: market-c | Prod: market-a | Prod: market-b | Prod: market-c  |
+|---------------|:-------------:|:-------------:|:-------------:|:--------------:|:--------------:|:---------------:|
+| market-role-a |      No       |      No       |      No       |  *<u>Yes</u>*  |       No       |       No        |
+| market-role-b |      No       |      No       |      No       |       No       |  *<u>Yes</u>*  |       No        |
+| market-role-c |      No       |      No       |      No       |       No       |       No       |  *<u>Yes</u>*   |
+
+
+<br>
+
+
 
 ### 2.1 IAM Module Structure (`modules/iam/`)
 
 - Accept `environment` and `app_name` as input variables
 - Output role ARN and instance profile name for consumption by other modules
 
-In this section we are going to look at the structure of what makes a module.  A module is a collection of resources that can be used in 
+In this section we are going to look at the structure of what makes a module.  Modules are a Terraform feature that allows you to break down complex infrastructure into reusable, modular pieces.  The core two principles of modules are that you are able to specify the source of the resource you want to create and pass information to the resource in the form of variables to create it.  This means that you can create multiple variations of a resource by changing the input variable values while leaving the resource definition unchanged.
+ 
 
-### 2.2 IAM Role for EC2 (Instance Profile)
-
+### 2.2 IAM Role for s3 Bucket and DynamoDB Table (Instance Profile)
+ 
 - Create an IAM role with an EC2 trust policy
 - Attach a custom policy granting only the permissions needed (e.g., read from a specific S3 bucket, write to a specific DynamoDB table)
 - Create an instance profile to attach the role to EC2 instances
@@ -424,43 +455,7 @@ Show how the IAM module consumes outputs from the S3 and DynamoDB modules to sco
 
 ---
 
-## Stage 3 — S3: Storage, Lifecycle, and Environment Isolation
 
-- [S3 Bucket Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket)
-
-
----
-
-## Stage 4 — DynamoDB: Application Data and State Store
-
-- [DynamoDB Table Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table)
----
-
-## Stage 5 — Networking: VPC and Security Groups
-
-
-
----
-
-## Stage 6 — Multi-Environment Orchestration
-
-
-
----
-
-## Stage 7 — Observability and Monitoring
-
-
----
-
-## Stage 8 — CI/CD Pipeline (GitHub Actions)
-
-
----
-
-## Stage 9 — Terraform Operations and State Management
-
----
 
 
 ## How This Maps to the GitLab SRE JD

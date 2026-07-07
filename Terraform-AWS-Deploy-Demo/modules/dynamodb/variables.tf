@@ -1,11 +1,13 @@
 variable "environment" {
   type = string
-  default = "dev"
 }
 
-variable "market_namespace" {
-  description = "Multi-tenancy, environment isolation"
+variable "market_region" {
   type = string
-  default = "market-a"
+  description = "Multi-tenancy, environment isolation"
 }
 
+variable "billing_mode" {
+  type = string
+  description = "Used to set the billing mode"
+}
