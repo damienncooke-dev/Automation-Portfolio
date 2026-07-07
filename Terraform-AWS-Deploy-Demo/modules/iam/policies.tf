@@ -1,3 +1,4 @@
+# All custom roles and policies are created here
 # Trust Policy
 data "aws_iam_policy_document" "ec2_assume_role_policy" {
   statement {
