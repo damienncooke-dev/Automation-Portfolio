@@ -2,6 +2,7 @@ module "s3" {
   source           = "../s3"
   environment      = var.environment
   market_region    = var.market_region
+  force_destroy    = var.force_destroy
 }
 
 module "dynamodb" {
@@ -9,6 +10,14 @@ module "dynamodb" {
   environment      = var.environment
   market_region    = var.market_region
   billing_mode     = var.billing_mode
+}
+
+module "ec2" {
+  source           = "../ec2"
+  environment      = var.environment
+  market_region    = var.market_region
+  ami_id           = var.ami_id   # comes directly from the root module in either dev or prod
+  iam_instance_profile   = module.iam.instance_profile_name   # pulls the instance profile from the iam output "instance_profile"
 }
 
 module "iam" {
