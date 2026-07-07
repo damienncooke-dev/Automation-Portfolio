@@ -13,12 +13,16 @@ resource "aws_iam_policy" "market_policy"{
 }
 
 # Here we create an instance to attach the permission policy resource: "market_policy" to the role: "market_role" and give it it's permission boundaries
-resource "aws_iam_role_policy_attachment" "market_attach" {
+resource "aws_iam_role_policy_attachment" "market_instance" {
   role       = aws_iam_role.market_role.name
   policy_arn = aws_iam_policy.market_policy.arn
 }
 
-
+# The profile that will attach to the ec2 instance. The profile name is exposed on the output to be picked by the calling module and then passed to the ec2 resource.
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name       = "demo-${var.environment}-${var.market_region}-ec2-profile"
+  role       = aws_iam_role.market_role.name
+}
 
 
 
