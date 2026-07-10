@@ -791,10 +791,12 @@ data "aws_iam_policy_document" "market_permissions" {
 
 We can quickly verify that the ARNs supplied by the S3 and DynamoDB were successfully assigned the permissions indicated above by looking at the AWS console `IAM -> Policies -> demo-prod-market-a-policy.` 
 
-[paste dynamodb image here]
+<img width="1202" height="957" alt="image" src="https://github.com/user-attachments/assets/61305dc2-7619-4d54-8b52-20386429c020" />
 
 
-[paste s3 image here]
+
+<img width="1177" height="979" alt="image" src="https://github.com/user-attachments/assets/b2b85f06-940f-43eb-9990-72b6ae26e505" />
+
 
 
 ---
