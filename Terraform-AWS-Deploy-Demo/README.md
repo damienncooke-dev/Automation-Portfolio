@@ -797,15 +797,26 @@ We can quickly verify that the ARNs supplied by the S3 and DynamoDB were success
 [paste s3 image here]
 
 
-
-
-
-
 ---
 <br>
 
 ### 2.5 Demonstrate how the concept of multi-tenancy works in Terraform
 
+In this final section, we will use the AWS UI Console to show how the concept of how multi-tenancy works by performing verifications of the following scenarios:
+
+- Show how the IAM role is scoped to a specific region.
+
+
+
+- Show how the EC2 instances are scoped to a specific region.
+
+
+
+- Show the roles associated with the EC2 instances.
+
+
+
+- Demonstrate how isolation of the environments prevents cross-tenant access.
 
 
 
