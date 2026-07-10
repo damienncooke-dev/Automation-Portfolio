@@ -15,6 +15,7 @@ variable "market_region" {
   ]
 }
 
+# Picked up in ENV setting: 'TF_VAR_trusted_role_arn'
 variable "trusted_role_arn" {
   type        = string
   description = "Used to grant the user permission to assume role"
@@ -33,6 +34,6 @@ variable "ami_id" {
 
 variable "force_destroy" {
   type    = bool
-  default = true
+  default = false
 }
 
