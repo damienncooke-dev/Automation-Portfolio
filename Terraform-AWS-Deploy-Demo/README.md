@@ -806,20 +806,95 @@ We can quickly verify that the ARNs supplied by the S3 and DynamoDB were success
 
 In this final section, we will use the AWS UI Console to show how the concept of how multi-tenancy works by performing verifications of the following scenarios:
 
-- Show how the IAM role is scoped to a specific region.
+#### 2.51 Show how the EC2 instances are scoped to a specific region.
+
+> Instances in "Dev/us-east-1":
+
+[paste image here]
+
+> Instances in "Prod/us-west-1":
+
+[paste image here]
 
 
+<br>
 
-- Show how the EC2 instances are scoped to a specific region.
+---
 
+#### 2.52 Show how the IAM role is scoped to a specific EC2 instance. (match role to instance id).
 
+#1
 
-- Show the roles associated with the EC2 instances.
+> EC2 Instance:  **dev-app-server-market-a**
 
+Confirmation: 
+```bash
+ssh-5.2$ aws sts get-caller-identity \| grep role \| cut -f2,3 -d/
+demo-dev-market-b-role/i-0d4ef5fa95b98bb8d"
+```
+#2
 
+> EC2 Instance: **prod-app-server-market-c**
 
-- Demonstrate how isolation of the environments prevents cross-tenant access.
+Confirmation:
+```bash
+sh-5.2$ aws sts get-caller-identity | grep role | cut -f2,3 -d/
+demo-prod-market-c-role/i-00f38b0fe71424d29"
+```
 
+<br>
+
+---
+#### 2.53 Copy a file form EC2 instance to an S3 bucket associated with the EC2 role.
+
+> EC2 Instance: **prod-app-server-market-c**
+
+Confirmation:
+```bash
+sh-5.2$ ls
+sample-app.log
+
+sh-5.2$ aws s3 cp sample-app.log s3://demo-prod-market-c-logs/
+upload: ./sample-app.log to s3://demo-prod-market-c-logs/sample-app.log
+```
+<br>
+
+---
+
+#### 2.54 Copy the same file to an S3 bucket that is not associated with the EC2 role.
+
+> EC2 Instance:  **prod-app-server-market-c**
+
+Confirmation: 
+```bash
+sh-5.2$ aws s3 cp sample-app.log s3://demo-prod-market-a-logs/
+upload failed: ./sample-app.log to s3://demo-prod-market-a-logs/sample-app.log 
+ERROR:  An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::???????????????:assumed-role/demo-prod-market-c-role/i-00f38b0fe71424d29 is not authorized toperform: s3:PutObject on resource: "arn:aws:s3:::demo-prod-market-a-logs/sample-app.log" because no identity-based policy allows the s3:PutObject action
+```
+
+<br>
+
+---
+#### 2.55 Demonstrate how isolation of the environments prevents cross-tenant access.
+
+> EC2 Instance:  **prod-app-server-market-c**
+
+```Json
+{
+   "file_id": {"N": "0000001"},
+   "file_name": {"S": "sample-app.log"},
+   "timestamp": {"S": "2026-07-02T14:00:00Z"},
+   "log_id": {"S": "123"}
+}
+```
+
+```bash
+h-5.2$ aws dynamodb put-item --table-name demo-prod-market-c-log-index --item file://sample-dynamodb-prod-item.json
+
+```
+Confirmation: 
+
+[paste image here]
 
 
 ---
