@@ -373,7 +373,7 @@ resource "local_file" "change_state" {
 
 ---
 
-## Phase 2 —  Role Identity, Policies, Least-Privilege Access, and Multi-Tenancy Deployment
+## Phase 2 — Role Identity, Policies, Least-Privilege Access, and Multi-Tenancy Deployment
 
 The following sections will walk through the creation of a "market_stack" that groups together the resources needed to create the deployment of a storage and indexing solution for EC2 instances in `Prod` and `Dev` environments.  The prod and dev environments are separated by region, (us-east-1-Dev and us-west-1-Prod), and within those environments you also have multi-tenant, specific market regions, that align development and production artifacts to the market in which they belong.
 
