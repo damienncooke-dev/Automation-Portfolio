@@ -810,11 +810,13 @@ In this final section, we will use the AWS UI Console to show how the concept of
 
 > Instances in "Dev/us-east-1":
 
-[paste image here]
+<img width="1079" height="141" alt="image" src="https://github.com/user-attachments/assets/e6905fa6-d363-414c-aae7-276c30db98ae" />
+
 
 > Instances in "Prod/us-west-1":
 
-[paste image here]
+<img width="1100" height="140" alt="image" src="https://github.com/user-attachments/assets/e3ac461f-1c21-4aed-ba84-c07130768881" />
+
 
 
 <br>
@@ -894,7 +896,8 @@ h-5.2$ aws dynamodb put-item --table-name demo-prod-market-c-log-index --item fi
 ```
 Confirmation: 
 
-[paste image here]
+<img width="1079" height="324" alt="image" src="https://github.com/user-attachments/assets/c4746b72-51c6-43e4-842a-ec66daf833cf" />
+
 
 
 ---
