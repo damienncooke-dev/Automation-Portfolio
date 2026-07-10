@@ -877,7 +877,7 @@ ERROR:  An error occurred (AccessDenied) when calling the PutObject operation: U
 <br>
 
 ---
-#### 2.55 Demonstrate how isolation of the environments prevents cross-tenant access.
+#### 2.55 Update dynamodb table with metadata.
 
 > EC2 Instance:  **prod-app-server-market-c**
 
