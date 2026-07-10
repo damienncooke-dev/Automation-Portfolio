@@ -1,16 +1,15 @@
-# All custom roles and policies are created here
 # Trust Policy
 data "aws_iam_policy_document" "ec2_assume_role_policy" {
   statement {
-    actions = ["sts:AssumeRole"]
+    actions = ["sts:AssumeRole"]  # Required for all roles
 
     principals {
-      type        = "Service"
+      type        = "Service"  # Trust AWS service listed as 'identifiers' to assume role
       identifiers = ["ec2.amazonaws.com"]
     }
     principals {
-      type        = "AWS"
-      identifiers = [var.trusted_role_arn]
+      type        = "AWS"     # Trust AWS entity provided in "identifiers" to assume role
+      identifiers = [var.trusted_role_arn]  # This value is picked up by the calling root module and passed to iam.
     }
   }
 }
