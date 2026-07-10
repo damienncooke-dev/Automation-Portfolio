@@ -1,15 +1,15 @@
 # Trust Policy
 data "aws_iam_policy_document" "ec2_assume_role_policy" {
   statement {
-    actions = ["sts:AssumeRole"]
+    actions = ["sts:AssumeRole"]  # Required for all roles
 
     principals {
-      type        = "Service"
+      type        = "Service"  # Trust AWS service listed as 'identifiers' to assume role
       identifiers = ["ec2.amazonaws.com"]
     }
     principals {
-      type        = "AWS"
-      identifiers = [var.trusted_role_arn]
+      type        = "AWS"     # Trust AWS entity provided in "identifiers" to assume role
+      identifiers = [var.trusted_role_arn]  # This value is picked up by the calling root module and passed to iam.
     }
   }
 }
@@ -23,7 +23,7 @@ data "aws_iam_policy_document" "market_permissions" {
         "s3:ListBucket"
      ]
      resources = [
-        var.bucket_arn    # only list permitted on the buckets with arn (e.g. arn:aws:s3:::demo-dev-market-a-logs)
+        var.bucket_arn    #  list only permitted and known bucket resources (e.g. arn:aws:s3:::demo-dev-market-a-logs)
      ]
    }
 
@@ -34,7 +34,7 @@ data "aws_iam_policy_document" "market_permissions" {
         "s3:PutObject"
      ]
      resources = [
-        "${var.bucket_arn}/*"   # actions allowed only on the objects in the bucket with arn (e.g. arn:aws:s3:::demo-dev-market-a-logs)
+        "${var.bucket_arn}/*"   # actions allowed only on the objects in the bucket with arn (e.g. arn:aws:s3:::demo-dev-market-a-logs/*)
      ]
    }
 
@@ -44,7 +44,8 @@ data "aws_iam_policy_document" "market_permissions" {
         "dynamodb:GetItem",
         "dynamodb:PutItem",
         "dynamodb:Query",
-        "dynamodb:Scan"
+        "dynamodb:Scan",
+        "dynamodb:DescribeTable"
      ]
      resources = [
         var.table_arn   # actions allowed on tables with arn (e.g. arn:aws:dynamodb:us-east-1:...:table/demo-dev-market-a-log-index

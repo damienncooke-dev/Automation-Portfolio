@@ -8,9 +8,10 @@
 
 This project provisions a realistic, multi-environment AWS infrastructure (e.g. dev / prod) using Terraform. It demonstrates core SRE competencies including IaC lifecycle management, remote state, modular design, IAM least-privilege, and observability — mapped directly to the skills expected in environment automation roles.
 
-**Project PHASE 1 ** Create a remote state backend (RSB) for storing Terraform state files in S3.**
+[Project PHASE 1 - Create a remote state backend (RSB) for storing Terraform state files in S3.](#phase-1--terraform-foundations--aws-remote-state-bootstrap)
 
-**Project PHASE 2 ** Create IAM role and policies to manage ec2 access to AWS resources.**
+[Project PHASE 2 - Create IAM role and policies to manage multi-market ec2 access to AWS resources.](#phase-2--role-identity-policies-least-privilege-access-and-multi-tenancy-deployment)
+
 
 ---
 
@@ -100,6 +101,7 @@ Access to AWS resources from any location requires credentials stored in environ
     "Arn": "arn:aws:sts::..."
   } 
   ```
+<br>
 
 ### 1.2 Provider Configuration
 
@@ -193,6 +195,7 @@ commands will detect it and remind you to do so if necessary.
 │   │   .     .    .     .      └── <type=aws>
 
 ```
+<br>
 
 ### 1.3 S3 Backend for Remote State
 
@@ -275,7 +278,7 @@ NOTE: The output will be suppled to "bucket" in the backend.tf file.
 
 ### 1.4 Backend Configuration Per Environment
 
-Configure the `dev` and `prod` environments to use the shared S3 backend with a unique state key:
+1. Configure the `dev` and `prod` environments to use the shared S3 backend with a unique state key:
 Note the 
 
 * **/evnironments/dev/backend.tf**
@@ -370,11 +373,23 @@ resource "local_file" "change_state" {
 
 ---
 
-## Phase 2 — IAM: Role Identity and Least-Privilege Access
+## Phase 2 — Role Identity, Policies, Least-Privilege Access, and Multi-Tenancy Deployment
 
-**Concepts demonstrated:** IAM role, policies, instance profiles, policy attachment, data sources, least-privilege design.
+The following sections will walk through the creation of a "market_stack" that groups together the resources needed to create the deployment of a storage and indexing solution for EC2 instances in `Prod` and `Dev` environments.  The prod and dev environments are separated by region, (us-east-1-Dev and us-west-1-Prod), and within those environments you also have multi-tenant, specific market regions, that align development and production artifacts to the market in which they belong.
 
-**Documents used to create the resources: role, policies, policy document, and policy attachment:**
+The market_stack will consist of the following resources:
+- An S3 bucket for log storage in each region-specific market; (market-a, market-b, and market-c). The markets will exist for both dev and prod environments.  
+- DynamoDB table for log file indexing / metadata tracking, also market-specific and environment-specific. 
+- One EC2 instance per region-specific (market-a,  market-b, and market-c) with access to specific S3 and DynamoDB resources in both Dev and Prod environments.
+- An IAM role called 'market_role' to allow the EC2 instances access to their designated S3 bucket and DynamoDB table.
+- IAM policy document and instance for: 
+  - Allowing EC2 to assume 'market_role' (Trust Policy)
+  - Giving permission to 'market_role' to perform actions on the S3 bucket and DynamoDB table.
+  - Access to SSM session manager (SSM) for EC2 CLI access. 
+
+**Concepts demonstrated:** IAM role, policies, instance profiles, multi-tenancy, and least-privilege design 
+
+**Documents used to create the deployment resources:**
 
 - [IAM Role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
 - [IAM Policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy)
@@ -384,81 +399,505 @@ resource "local_file" "change_state" {
 - [DynamoDB Table Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table)
 - [EC2 Instance Creation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance)
 
-The following sections will walk through the creation of a "market_stack" that groups together the resources needed to create the deployment of a storage and indexing solution based in a `prod` and `dev` environment.  Within those environments, you also have specific market regions that align development and production artifacts to the market in which they belong: 
-- One S3 bucket for each environment-specific (Dev/Prod) and for region-specific (market-a, market-b, and market-c) log storage. 
-- One DynamoDB table for log indexing / metadata tracking, also environment-specific and region-specific.
-- One EC2 instance per environment-specific (Dev/Prod) and for region-specific (market-a,  market-b, and market-c) access to S3 and DynamoDB resources.
-- An IAM role called 'market_role' to allow EC2 access to the designated S3 bucket and DynamoDB table.
-- IAM policy document and instance for 'market_role' giving it read/write privileges to the S3 bucket and DynamoDB table.
+<br>
 
+```
+                                                    MARKET STACK ARCHITECTURE
+                                       
+ 
+                           Dev (us-east-1)                                           Prod (us-west-1)
+                                  |                             |                            |
+                                  |                             |                            |
+               +------------------+------------------+          |         +------------------+------------------+
+               |                  |                  |          |         |                  |                  |
+            market-a           market-b           market-c      |      market-a           market-b           market-c
+               |                  |                  |          |         |                  |                  |
+              EC2                EC2                EC2         |        EC2                EC2                EC2     
+               |                  |                  |          |         |                  |                  |             
+        [market-a-role]    [market-b-role]    [market-c-role]   |  [market-a-role]    [market-b-role]    [market-c-role]
+               +                  +                  +          |         +                  +                  +    
+       [market-a-policy]  [market-b-policy]  [market-c-policy]  | [market-a-policy]  [market-b-policy]  [market-c-policy]              
+               |                  |                  |          |         |                  |                  |       
+           S3 bucket          S3 bucket          S3 bucket      |     S3 bucket          S3 bucket          S3 bucket
+               &                  &                  &          |         &                  &                  &
+           DynamoDB           DynamoDB           DynamoDB       |     DynamoDB           DynamoDB           DynamoDB
+             table              table              table        |       table              table              table
+                         
+                         
+```
 
-In this demo, we will use the following modules to create the resources:
-- `modules/s3/`
-- `modules/dynamodb/`
-- `modules/ec2/`
-- `modules/iam/`
-- `modules/market/`   
+ 
 
-If you are part of the Development group or the Production Operations group, you will be assigned a role for a particular market region.  Below is a matrix of the roles that will have access to the resources in the market stack.
+### Development Environment Allowed Actions
+| Dev-Role      | Dev: market-a <br/> Stack | Dev: market-b <br/> Stack  | Dev: market-c <br/> Stack  | Prod: market-a <br/> Stack  | Prod: market-b <br/> Stack  | Prod: market-c  <br/> Stack  |
+|---------------|:-------------------------:|:--------------------------:|:--------------------------:|:---------------------------:|:---------------------------:|:----------------------------:|
+| market-role-a |          *Allow*          |             No             |             No             |             No              |             No              |              No              |
+| market-role-b |            No             |          *Allow*           |             No             |             No              |             No              |              No              |
+| market-role-c |            No             |             No             |          *Allow*           |             No              |             No              |              No              |
 
-### Development Environment
-| Dev-Role      | Dev: market-a | Dev: market-b | Dev: market-c | Prod: market-a | Prod: market-b | Prod: market-c |
-|---------------|:-------------:|:-------------:|:-------------:|:---------------:|:---------------:|:---------------:|
-| market-role-a | *<u>Yes</u>*  |      No       |      No       |       No        |       No        |       No        |
-| market-role-b |      No       | *<u>Yes</u>*  |      No       |       No        |       No        |       No        |
-| market-role-c |      No       |      No       | *<u>Yes</u>*  |       No        |       No        |       No        |
-
-### Production Environment
-| Prod-Role     | Dev: market-a | Dev: market-b | Dev: market-c | Prod: market-a | Prod: market-b | Prod: market-c  |
-|---------------|:-------------:|:-------------:|:-------------:|:--------------:|:--------------:|:---------------:|
-| market-role-a |      No       |      No       |      No       |  *<u>Yes</u>*  |       No       |       No        |
-| market-role-b |      No       |      No       |      No       |       No       |  *<u>Yes</u>*  |       No        |
-| market-role-c |      No       |      No       |      No       |       No       |       No       |  *<u>Yes</u>*   |
+### Production Environment Allowed Actions
+| Prod-Role     |Dev: market-a <br/> Stack  | Dev: market-b <br/> Stack  | Dev: market-c <br/> Stack  | Prod: market-a <br/> Stack  |Prod: market-b  <br/> Stack  | Prod: market-c  <br/> Stack  |
+|---------------|:-------------------------:|:--------------------------:|:--------------------------:|:---------------------------:|:---------------------------:|:----------------------------:|
+| market-role-a |            No             |             No             |             No             |           *Allow*           |             No              |              No              |
+| market-role-b |            No             |             No             |             No             |             No              |           *Allow*           |              No              |
+| market-role-c |            No             |             No             |             No             |             No              |             No              |           *Allow*            |
 
 
 <br>
 
 
 
-### 2.1 IAM Module Structure (`modules/iam/`)
+### 2.1  Module Structure 
 
-- Accept `environment` and `app_name` as input variables
-- Output role ARN and instance profile name for consumption by other modules
+Modules are a Terraform feature that allows you to break down complex infrastructure into reusable, modular pieces.  The main benefits of using modules here are that you are able to break large configurations into logical units that can reused over and over again, and you can isolate the reusable infrastructure logic from the environment-specific deployment configuration.  This means that you can create as many environments as needed without touching the infrastructure part and you can modify and test the infrastructure part without impacting the environment configuration. 
 
-In this section we are going to look at the structure of what makes a module.  Modules are a Terraform feature that allows you to break down complex infrastructure into reusable, modular pieces.  The core two principles of modules are that you are able to specify the source of the resource you want to create and pass information to the resource in the form of variables to create it.  This means that you can create multiple variations of a resource by changing the input variable values while leaving the resource definition unchanged.
- 
+The module structure in this demo is as follows:
+- Environment Specific Modules
+  - One root module that passes in environment-specific variables to a composition layer module before calling the individual module resources.
+- Infrastructure Logic
+  - The composition layer module is responsible for creating the resources as a "stack" of modules.  It also orchestrates the passing of input and output variables to the individual module resources.
+  - The individual module resources are responsible for creating the resources needed for the environment.
 
-### 2.2 IAM Role for s3 Bucket and DynamoDB Table (Instance Profile)
- 
-- Create an IAM role with an EC2 trust policy
-- Attach a custom policy granting only the permissions needed (e.g., read from a specific S3 bucket, write to a specific DynamoDB table)
-- Create an instance profile to attach the role to EC2 instances
-
+<br>
+  
+**Actual module structure implementation:**
 ```hcl
-resource "aws_iam_role" "app_role" {
-  name               = "${var.app_name}-${var.environment}-role"
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+
+# main root module that passes in environment-specific variables to a composition layer module.
+-> `environments/[dev|prod]/main.tf`  
+        
+module "market_stack" {
+  source           = "../../modules/market"
+  for_each         = toset(var.market_region) # for_each only accepts map and set types, raw list types generate an error.
+  market_region    = each.value   # Values are {market-a, market-b, market-c}
+  environment      = var.environment  # self = prod
+  trusted_role_arn = var.trusted_role_arn   # Allows any IAM principle that has Assume Role enabled on their account to assume any of the market roles. 'trusted_role_arn' is picked up from ENV setting: 'TF_VAR_trusted_role_arn'
+  billing_mode     = var.billing_mode   # Set to PAY-PER-USE
+  ami_id           = var.ami_id   # Configured OS used to apply to EC2 instance.  Specific to aws_region
+  force_destroy    = var.force_destroy  # Prevents accidental deletion of data when 'false', allows complete resource removal including data when 'true'
 }
 ```
 
-### 2.3 Custom IAM Policy (Least Privilege)
+```hcl
+# composition layer module that stacks the required modules and orchestrates the passing of input and output variables to the individual module resources.
+-> `modules/market/main.tf`
 
-- Use `aws_iam_policy_document` data source to build policies in HCL (not JSON strings)
-- Scope permissions to specific resource ARNs using `module.s3.bucket_arn` and `module.dynamodb.table_arn` output references
+module "s3" {
+  source           = "../s3"
+  environment      = var.environment
+  market_region    = var.market_region
+  force_destroy    = var.force_destroy
+}
+
+module "dynamodb" {
+  source           = "../dynamodb"
+  environment      = var.environment
+  market_region    = var.market_region
+  billing_mode     = var.billing_mode
+}
+
+module "ec2" {
+  source           = "../ec2"
+  environment      = var.environment
+  market_region    = var.market_region
+  ami_id           = var.ami_id   # Passed through from calling 'root' module. Specifies OS to be used in EC2
+  iam_instance_profile   = module.iam.instance_profile_name   # Gets value from the 'output' of the iam module
+}
+
+module "iam" {
+  source           = "../iam"
+  environment      = var.environment
+  market_region    = var.market_region
+  bucket_arn       = module.s3.bucket_arn      # Gets value from the 'output' of the S3 module
+  table_arn        = module.dynamodb.table_arn # Gets value from the 'output' of the dynamodb module
+  trusted_role_arn = var.trusted_role_arn      # Passed through from calling 'root' module
+}
+
+
+```
+
+```
+# individual module resources that create the resources needed for the environment.
+- `modules/s3/`
+- `modules/dynamodb/`
+- `modules/ec2/`
+- `modules/iam/`
+```
+
+<br>
+
+### 2.2 IAM Role for s3 Bucket and DynamoDB Table access (Instance Profile)
+ 
+The IAM role is needed to enable access to resources and what actions are permitted on them.  IAM roles have no meaning until policies are attached to them. 
+
+- Create an IAM role with an EC2 trust policy.  The trust policy is required by AWS and must be attached to the role before it can be assumed.  
+
+
+```hcl
+# Main module that creates the IAM role and instance profiles. The policies.tf file contains the custom policy data used by main.tf.
+-> `modules/iam/main.tf`
+
+# The 'resource' below creates the role "demo-${var.environment}-${var.market_region}-role" and attaches the trust policy. 
+resource "aws_iam_role" "market_role" {
+  name               = "demo-${var.environment}-${var.market_region}-role"
+  path               = "/market/"   # organize this role under "market"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
+}
+      ...
+        
+# The data block below is specifically for the trust policy required for the 'aws_iam_role' resource above.        
+-> `modules/iam/policies.tf`
+        
+# Trust Policy
+data "aws_iam_policy_document" "ec2_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]  # Required for all roles
+
+    principals {
+      type        = "Service"  # Trust AWS service listed as 'identifiers' to assume role
+      identifiers = ["ec2.amazonaws.com"]
+    }
+    principals {
+      type        = "AWS"     # Trust AWS entity provided in "identifiers" to assume role
+      identifiers = [var.trusted_role_arn]  # This value is picked up by the calling root module and passed to iam. 
+    }
+  }
+}
+        ...
+                
+                
+
+
+
+```
+<br>
+
+### 2.3 Use custom IAM Policies to define access and permissions (Least Privilege)
+
+- Create a custom policy in a separate `policies.tf` file granting only the permissions needed (e.g., read from a specific S3 bucket, write to a specific DynamoDB table). 
+- Create an instance profile to attach the role to policies defining resource permissions.
+- Create an instance profile to associate the role with the EC2 instance.
+- Attach an AWS managed policy (AmazonSSMManagedInstanceCore) to allow ssh into the EC2 instance.
+
+```hcl
+# The data block below is specifically for the trust policy required for the 'aws_iam_role' resource above.        
+-> `modules/iam/policies.tf`
+   
+# Permission Policy
+data "aws_iam_policy_document" "market_permissions" {
+   # The 'statement' blocks below are the policy configurations for S3 and DynamoDB
+   statement{
+     sid = "S3ListBucket"
+     actions = [
+        "s3:ListBucket"
+     ]
+     resources = [
+        var.bucket_arn    #  list only permitted and known bucket resources (e.g. arn:aws:s3:::demo-dev-market-a-logs)
+     ]
+   }
+
+   statement{
+     sid = "S3Access"
+     actions = [
+        "s3:GetObject",
+        "s3:PutObject"
+     ]
+     resources = [
+        "${var.bucket_arn}/*"   # actions allowed only on the objects in the bucket with arn (e.g. arn:aws:s3:::demo-dev-market-a-logs/*)
+     ]
+   }
+
+   statement{
+     sid = "DynamodDBAccess"
+     actions = [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:DescribeTable"
+     ]
+     resources = [
+        var.table_arn   # actions allowed on tables with arn (e.g. arn:aws:dynamodb:us-east-1:...:table/demo-dev-market-a-log-index
+     ]
+   }
+}
+
+
+```
+```hcl
+# Main module that creates the IAM role and instance profiles. The policies.tf file contains the custom policy data used by main.tf.
+-> `modules/iam/main.tf`
+
+# The 'resource' below creates the role "demo-${var.environment}-${var.market_region}-role" and attaches the trust policy. 
+resource "aws_iam_role" "market_role" {
+         ...
+}
+
+# The 'resource' below creates the Permission policy when combined with policies.tf: "data.aws_iam_policy_document.market_permissions.json"
+resource "aws_iam_policy" "market_policy"{
+  name        = "demo-${var.environment}-${var.market_region}-policy"
+  description = "Tenant scoped policy"
+  policy = data.aws_iam_policy_document.market_permissions.json
+}
+
+# Here we create an instance to attach the permission policy resource: "market_policy" to the role: "market_role" and give it it's permission boundaries
+resource "aws_iam_role_policy_attachment" "market_instance" {
+  role       = aws_iam_role.market_role.name
+  policy_arn = aws_iam_policy.market_policy.arn
+}
+
+# The profile that will attach to the ec2 instance. The profile name is exposed on the output to be picked by the calling module and then passed to the ec2 resource.
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name       = "demo-${var.environment}-${var.market_region}-ec2-profile"
+  role       = aws_iam_role.market_role.name
+}
+
+# Attach AWS managed policy: "AmazonSSMManagedInstanceCore" to allow ssh to EC2 instances
+resource "aws_iam_role_policy_attachment" "ssm_managed_policy" {
+  role       = aws_iam_role.market_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+
+```
+
+<br>
+
 
 ### 2.4 Demonstrate Cross-Module Reference
 
-Show how the IAM module consumes outputs from the S3 and DynamoDB modules to scope permissions to exact resource ARNs — illustrating module composition.
+A key feature of modules is the concept of cross-module references. In the example below, I will walk through how the IAM module consumes outputs from the S3 and DynamoDB modules to scope permissions to exact resource ARNs instead of using wildcards.
+
+#### Step 1:
+The workflow begins with either the dev or prod environments.  They both create the same resources and policies, just with differentiating names and environment-specific variables. Below the `environments/prod/main.tf` is shown with the values passed to the `module/market`
+
+```hcl
+# The main root module that calls the the market module.        
+-> `environments/prod/main.tf`
+
+module "market_stack" {
+  source           = "../../modules/market"
+  for_each         = toset({"market-a", "market-b", "market-c"}) # for_each only accepts map and set types, raw list types generate an error
+  market_region    = "market-a" | "market-b" | "market-c"  # each of these values are passed to the module/market individually 
+  environment      = "prod"
+  trusted_role_arn = # provided by ENV variable TF_VAR_trusted_role_arn
+  billing_mode     = "PAY_PER_REQUEST"
+  ami_id           = "ami-07fdf51168766b58a"
+  force_destroy    = false
+}
+```
+<br>
+
+#### Step 2:
+The`module/market` will take the above values and use them to create the resources: (for the purposes of this demo, we will stick to module/iam)
+
+```hcl
+# The root module that calls the individual modules.        
+-> `modules/market/main.tf`
+
+  ...
+        
+module "iam" {
+  source           = "../iam"
+  environment      = "prod"
+  market_region    = "market-a"  # We will use 'market-a' for the example
+  bucket_arn       = module.s3.bucket_arn      # Gets value from the 'output' of the S3 module
+  table_arn        = module.dynamodb.table_arn # Gets value from the 'output' of the dynamodb module
+  trusted_role_arn = var.trusted_role_arn      # Passed through from calling 'root' module
+}
+
+  ...
+
+```
+<br>
+
+#### Step 3:
+The `bucket_arn` and `table_arn` values above are passed to the `iam` module, which are sourced from the `output.tf` file of the `s3` and `dynamodb` modules.
+
+```hcl
+# Values exported when creating the s3 bucket.        
+-> `modules/s3/outputs.tf`
+        
+output "bucket_arn" {
+  description = "ARN of bucket"
+  value = aws_s3_bucket.app_logs.arn  # value is generated after the 'terraform apply' command is run
+}
+
+# This output value is picked up by the 'iam' module -> "bucket_arn = module.s3.bucket_arn = aws_s3_bucket.app_logs.arn"
+
+```
+```hcl
+# Values exported when creating the dynamodb table.        
+-> `modules/dynamodb/outputs.tf`
+        
+output "table_arn" {
+  description = "ARN of table"
+  value = aws_dynamodb_table.log_index.arn   # value is generated after the 'terraform apply' command is run
+}
+
+# This output value is picked up by the 'iam' module -> "table_arn = module.dynamodb.table_arn = aws_dynamodb_table.log_index.arn"
+
+```
+<br>
+
+#### Step 4:
+The `module/iam` uses the `bucket_arn` and `table_arn` values passed to it to assign the permission to the specific resource ARNs.  This is done in the `policies.tf` file.
+```hcl
+# The data block below is used to assign the permission policy to specific resource ARNs.        
+-> `modules/iam/policies.tf`
+  
+data "aws_iam_policy_document" "market_permissions" {
+   # The 'statement' blocks below are the policy configurations for S3 and DynamoDB
+   statement{
+     sid = "S3ListBucket"
+     actions = [
+        "s3:ListBucket"
+     ]
+     resources = [
+        var.bucket_arn    # <--- Passed through from the calling root module module/market/main.tf 
+     ]
+   }
+
+   statement{
+     sid = "S3Access"
+     actions = [
+        "s3:GetObject",
+        "s3:PutObject"
+     ]
+     resources = [
+        "${var.bucket_arn}/*"   # <--- Passed through from the calling root module module/market/main.tf
+     ]
+   }
+
+   statement{
+     sid = "DynamodDBAccess"
+     actions = [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:DescribeTable"
+     ]
+     resources = [
+        var.table_arn   # <--- Passed through from the calling root module module/market/main.tf
+     ]
+   }
+}
 
 
-**SRE relevance:** Demonstrates understanding of isolation and least-privilege — critical when managing many tenant environments where blast radius must be minimized.
+```
+
+#### Step 5:
+
+We can quickly verify that the ARNs supplied by the S3 and DynamoDB were successfully assigned the permissions indicated above by looking at the AWS console `IAM -> Policies -> demo-prod-market-a-policy.` 
+
+<img width="1202" height="957" alt="image" src="https://github.com/user-attachments/assets/61305dc2-7619-4d54-8b52-20386429c020" />
+
+
+
+<img width="1177" height="979" alt="image" src="https://github.com/user-attachments/assets/b2b85f06-940f-43eb-9990-72b6ae26e505" />
+
+
+
+---
+<br>
+
+### 2.5 Demonstrate how the concept of multi-tenancy works in Terraform
+
+In this final section, we will use the AWS UI Console to show how the concept of how multi-tenancy works by performing verifications of the following scenarios:
+
+#### 2.51 Show how the EC2 instances are scoped to a specific region.
+
+> Instances in "Dev/us-east-1":
+
+<img width="1079" height="141" alt="image" src="https://github.com/user-attachments/assets/e6905fa6-d363-414c-aae7-276c30db98ae" />
+
+
+> Instances in "Prod/us-west-1":
+
+<img width="1100" height="140" alt="image" src="https://github.com/user-attachments/assets/e3ac461f-1c21-4aed-ba84-c07130768881" />
+
+
+
+<br>
 
 ---
 
+#### 2.52 Show how the IAM role is scoped to a specific EC2 instance. (match role to instance id).
 
+#1
 
+> EC2 Instance:  **dev-app-server-market-a**
 
-## How This Maps to the GitLab SRE JD
+Confirmation: 
+```bash
+ssh-5.2$ aws sts get-caller-identity \| grep role \| cut -f2,3 -d/
+demo-dev-market-b-role/i-0d4ef5fa95b98bb8d"
+```
+#2
+
+> EC2 Instance: **prod-app-server-market-c**
+
+Confirmation:
+```bash
+sh-5.2$ aws sts get-caller-identity | grep role | cut -f2,3 -d/
+demo-prod-market-c-role/i-00f38b0fe71424d29"
+```
+
+<br>
+
+---
+#### 2.53 Copy a file form EC2 instance to an S3 bucket associated with the EC2 role.
+
+> EC2 Instance: **prod-app-server-market-c**
+
+Confirmation:
+```bash
+sh-5.2$ ls
+sample-app.log
+
+sh-5.2$ aws s3 cp sample-app.log s3://demo-prod-market-c-logs/
+upload: ./sample-app.log to s3://demo-prod-market-c-logs/sample-app.log
+```
+<br>
+
+---
+
+#### 2.54 Copy the same file to an S3 bucket that is not associated with the EC2 role.
+
+> EC2 Instance:  **prod-app-server-market-c**
+
+Confirmation: 
+```bash
+sh-5.2$ aws s3 cp sample-app.log s3://demo-prod-market-a-logs/
+upload failed: ./sample-app.log to s3://demo-prod-market-a-logs/sample-app.log 
+ERROR:  An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::???????????????:assumed-role/demo-prod-market-c-role/i-00f38b0fe71424d29 is not authorized toperform: s3:PutObject on resource: "arn:aws:s3:::demo-prod-market-a-logs/sample-app.log" because no identity-based policy allows the s3:PutObject action
+```
+
+<br>
+
+---
+#### 2.55 Demonstrate how isolation of the environments prevents cross-tenant access.
+
+> EC2 Instance:  **prod-app-server-market-c**
+
+```Json
+{
+   "file_id": {"N": "0000001"},
+   "file_name": {"S": "sample-app.log"},
+   "timestamp": {"S": "2026-07-02T14:00:00Z"},
+   "log_id": {"S": "123"}
+}
+```
+
+```bash
+h-5.2$ aws dynamodb put-item --table-name demo-prod-market-c-log-index --item file://sample-dynamodb-prod-item.json
+
+```
+Confirmation: 
+
+<img width="1079" height="324" alt="image" src="https://github.com/user-attachments/assets/c4746b72-51c6-43e4-842a-ec66daf833cf" />
+
 
 
 ---
@@ -468,9 +907,8 @@ Show how the IAM module consumes outputs from the S3 and DynamoDB modules to sco
 ### Prerequisites
 
 - Terraform >= 1.6 (Community Edition Latest = 1.15.7)
-- Terraform Cloud ( Optional
 - AWS CLI configured with appropriate credentials
-- GitHub repository with Actions enabled
+- GitHub repository 
 - AWS account with sufficient IAM permissions to create all resources above
 
 ### Bootstrap (One-time)
@@ -501,3 +939,16 @@ terraform destroy
 ## License
 
 MIT
+
+
+BEST PRACTICES
+
+🚨 Never share:
+
+* AWS_ACCESS_KEY_ID
+* AWS_SECRET_ACCESS_KEY
+* AWS_SESSION_TOKEN
+* Private keys (.pem files)
+* Terraform state files containing secrets
+* Database passwords
+* API keys/tokens
