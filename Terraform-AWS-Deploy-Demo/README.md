@@ -902,6 +902,7 @@ Confirmation:
 
 ---
 
+
 ## Getting Started
 
 ### Prerequisites
@@ -941,14 +942,4 @@ terraform destroy
 MIT
 
 
-BEST PRACTICES
 
-🚨 Never share:
-
-* AWS_ACCESS_KEY_ID
-* AWS_SECRET_ACCESS_KEY
-* AWS_SESSION_TOKEN
-* Private keys (.pem files)
-* Terraform state files containing secrets
-* Database passwords
-* API keys/tokens
