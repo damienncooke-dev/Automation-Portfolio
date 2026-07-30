@@ -528,7 +528,7 @@ module "iam" {
 
 ### 2.2 IAM Role for s3 Bucket and DynamoDB Table access (Instance Profile)
  
-The IAM role is needed to enable access to resources and what actions are permitted on them.  IAM roles have no meaning until policies are attached to them. 
+The IAM role is needed to enable access to resources and what actions are permitted on them.  IAM roles have no practical effect until policies are attached to them. 
 
 - Create an IAM role with an EC2 trust policy.  The trust policy is required by AWS and must be attached to the role before it can be assumed.  
 
