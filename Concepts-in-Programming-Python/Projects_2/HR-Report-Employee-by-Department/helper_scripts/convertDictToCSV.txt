@@ -1,0 +1,5 @@
+# Below commands are VIM commands to convert a dictionary structure to CSV format
+
+:%s/^\[// | %s/\]$//
+:%s/}, {/}\r{/g
+:%s/{'Full Name': '\([^']*\)', 'Username': '\([^']*\)', 'Department': '\([^']*\)'}/\1,\2,\3/g

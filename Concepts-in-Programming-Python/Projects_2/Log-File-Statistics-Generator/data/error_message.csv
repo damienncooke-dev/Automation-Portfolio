@@ -1,0 +1,10 @@
+Error,Count
+Timeout while retrieving information ,15.0
+Commented on ticket ,13.0
+Connection to DB failed ,13.0
+Tried to add information to closed ticket ,12.0
+Created ticket ,11.0
+Closed ticket ,10.0
+Permission denied while closing ticket ,10.0
+The ticket was modified while updating ,9.0
+Ticket doesn't exist ,7.0
